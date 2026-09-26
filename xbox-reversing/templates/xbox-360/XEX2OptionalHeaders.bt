@@ -1,0 +1,281 @@
+//--------------------------------------
+//--- 010 Editor v3.0.5 Binary Template
+//
+// File:     XEX2OptionalHeaders
+// Author:   Anthony
+// Revision: 1.0
+// Purpose:  Defines optional header structures
+//--------------------------------------
+typedef CHAR XEXDIGEST[20]<read=ReadXEXDIGEST>;
+typedef CHAR XEXKEY[16]<read=ReadXEXKEY>;
+
+typedef struct {
+    int QFE   : 8<format=decimal>;
+    int Build : 16<format=decimal>;
+    int Minor : 4<format=decimal>;
+    int Major : 4<format=decimal>;
+} VERSION<read=ReadVERSION>;
+
+typedef struct {
+    IMAGEKEYS ID;
+    DWORD     Data;
+} OPTIONALHEADER<read=ReadOPTIONALHEADER>;
+
+typedef struct {
+    DWORD   Size;
+    CHAR    Data[Size - 4];
+} OPTIONALHEADERDATA;
+
+typedef struct {
+    DWORD           InfoSize;
+    ENCRYPTIONTYPE  Flags;
+    COMPRESSIONTYPE Format;
+    
+    // This next structure depends on compression type
+    if(Format == 1) 
+        struct  RawBaseFileBlock {
+            DWORD   Size;
+            DWORD   ZeroSize;
+        } Block[(InfoSize - 8) / sizeof(RawBaseFileBlock)];
+    else
+    {       
+        DWORD   WindowSize;
+        // This structure is at the start of each compressed block
+        struct  CompressedBaseFileBlock {
+            DWORD     Size;
+            XEXDIGEST Digest;
+        } Block;
+    }
+} XEX_FILE_DATA_DESCRIPTOR;
+
+typedef struct {
+    DWORD   SectionSize;
+    struct XEX3F_SECTION_HEADER {
+        // Field type is a guess, seems to be unused/reserved in XEX3F
+        CHAR SectionName[8];
+    
+        // These seem to match up with values inside PE section headers
+        DWORD VirtualAddress;
+        DWORD VirtualSize;
+        DWORD RawAddress;
+        DWORD RawSize;
+    
+        // Unsure about these, value does seem very similar to XEX2 HV_PAGE_INFO values tho...
+        DWORD Info : 4;
+        DWORD Size : 28;
+    
+        DWORD Padding1C; // no idea, always seems to be 0?
+    } Headers[(SectionSize - 4) / sizeof(XEX3F_SECTION_HEADER)];
+} XEX3F_SECTION_HEADERS;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    VERSION BaseVersion;
+    DWORD TitleId;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR DiscNum;
+    CHAR DiscsInSet;
+    DWORD SaveGameId;
+} XEX2_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    DWORD Platform;
+    DWORD ExecutableType;
+    DWORD DiscNum;
+    DWORD DiscsInSet;
+    DWORD SaveGameId;
+} XEX25_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    WORD UpdatedVersion;
+    WORD Region;
+    DWORD Rating;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
+} XEX2D_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    WORD UpdatedVersion;
+    WORD Region;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
+} XEX3F_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    WORD UpdatedVersion;
+    WORD Region;
+    CHAR Platform;
+    CHAR ContentType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
+} XEX0_EXECUTION_ID;
+
+typedef struct {
+    DWORD Size;
+    DWORD CustomServiceIDs[4];
+} XEX_SERVICE_ID_LIST;
+
+typedef struct {
+    DWORD   SectionSize;
+    struct XEXIMAGE_LIBRARY_VERSION {
+        CHAR    LibraryName[8];
+        struct LIBVERSION {
+            SHORT           Major<format=decimal>;
+            SHORT           Minor<format=decimal>;
+            SHORT           Build<format=decimal>;
+            APPROVALTYPE    ApprovalType;
+            BYTE            QFE<format=decimal>;
+       } Version;    
+    } Libs[(SectionSize - 4) / sizeof(XEXIMAGE_LIBRARY_VERSION)]<read=ReadLIBRARY>;
+} XEXIMAGE_LIBRARY_VERSIONS;
+
+typedef struct {
+    DWORD   InfoSize;
+    struct RESOURCE {
+        CHAR    SectionName[8];
+        DWORD   VirtualAddress;
+        DWORD   VirtualSize;
+    } Sections[(InfoSize - 4) / sizeof(RESOURCE)];
+} XEX2_RESOURCES;
+
+typedef struct {
+    DWORD   Size;
+    CHAR    String[Size - 4];
+} XEXSTRING<read=ReadXEXSTRING>;
+
+typedef struct {
+    DWORD   VirtualAddress;
+    DWORD   Size;
+} IMAGE_DATA_DIRECTORY;
+
+typedef struct {
+    DWORD   TlsSlotCount;
+    DWORD   AddressOfRawData;
+    DWORD   SizeOfRawData;
+    DWORD   SizeOfTlsData;
+} XEX_TLS_DATA;
+
+typedef struct {
+    DWORD   Checksum;
+    time_t  Timestamp;
+} XEX_VITAL_STATS;
+
+typedef struct {
+    DWORD BeginFunctionThunkAddress;
+    DWORD EndFunctionThunkAddress;
+} XEX_CALLCAP_IMPORTS;
+
+typedef struct {
+    DWORD   SectionSize;
+    DWORD   LogoSize;
+    CHAR    Logo[LogoSize];
+} XEX_MSLOGO;
+
+typedef struct {
+    CHAR    Ratings[64];
+} XEX_GAMERATINGS;
+
+typedef struct {
+    DWORD       XPos<format=hex>;
+    DWORD       YPos<format=hex>;
+    USHORT      UncompressedLen;
+    USHORT      CompressedLen;
+    if(CompressedLen > 0)
+        CHAR        PatchData[CompressedLen];
+} LZX_DELTA_CHUNK;
+
+typedef struct {
+    DWORD            Size;
+    VERSION          TargetVersion;
+    VERSION          SourceVersion;
+    XEXDIGEST        DigestSource;
+    XEXKEY           ImageKeySource;
+    DWORD            SizeOfTargetHeaders;
+    DWORD            DeltaHeadersSourceOffset;
+    DWORD            DeltaHeadersSourceSize;
+    DWORD            DeltaHeadersTargetOffset;
+    DWORD            DeltaImageSourceOffset;
+    DWORD            DeltaImageSourceSize;
+    DWORD            DeltaImageTargetOffset;
+    LZX_DELTA_CHUNK  DeltaImageHeaderPatch;
+} XEX_DELTA_PATCH_DESCRIPTOR;
+
+// Import descriptor used in XEX1+ (header key 0x103FF)
+// Also used for header key 0x102FF in XEX25 (1746)
+typedef struct {
+    DWORD   SectionSize;
+    DWORD   NameTableSize;
+    DWORD   ModuleCount;
+    CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
+    struct XEX2_IMPORT_TABLE_ORG {
+        DWORD     TableSize;
+        
+        // next section is HV_IMAGE_IMPORT_TABLE struct
+        XEXDIGEST NextImportDigest;
+        DWORD     ModuleNumber;
+        VERSION   Version;
+        VERSION   VersionMin;
+        BYTE      Unused;
+        BYTE      ModuleIndex;
+        SHORT     ImportCount;
+        
+        DWORD     ImportTable[ImportCount];
+    };
+    
+    local ULONG ulIndex=0;
+    local ULONG ulCurPos = 0;
+    for (ulIndex=0; ulIndex < ModuleCount; ulIndex++)
+    {
+        ulCurPos = FTell();
+        XEX2_IMPORT_TABLE_ORG Libs;
+        FSeek(ulCurPos + Libs.TableSize);
+    }
+} XEX2_IMPORT_DESCRIPTOR;
+
+// Import descriptor used in XEX2D (header key 0x102FF)
+typedef struct {
+    DWORD   SectionSize;
+    DWORD   NameTableSize;
+    DWORD   ModuleCount;
+    CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
+    struct XEX_IMPORT_TABLE_ORG {
+        DWORD     TableSize;
+        
+        // next section is HV_IMAGE_IMPORT_TABLE struct
+        XEXDIGEST NextImportDigest;
+        DWORD     ModuleNumber;
+        VERSION   Version;
+        BYTE      Unused;
+        BYTE      ModuleIndex;
+        SHORT     ImportCount;
+        
+        DWORD     ImportTable[ImportCount];
+    };
+    
+    local ULONG ulIndex=0;
+    local ULONG ulCurPos = 0;
+    for (ulIndex=0; ulIndex < ModuleCount; ulIndex++)
+    {
+        ulCurPos = FTell();
+        XEX_IMPORT_TABLE_ORG Libs;
+        FSeek(ulCurPos + Libs.TableSize);
+    }
+} XEX_IMPORT_DESCRIPTOR;

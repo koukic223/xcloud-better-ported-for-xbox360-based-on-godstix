@@ -1,0 +1,177 @@
+//--------------------------------------
+//--- 010 Editor v9.0 Binary Template
+//
+// File:     XEX2.bt
+// Author:   Anthony, emoose
+// Revision: 1.5
+// Purpose:  Defines a template for parsing Xbox 360 Executables.
+// History:
+// 2010-02-10  Anthony  Initial version, a complete XEX2 reader
+// 2018-11-20  emoose   Update with proper XEX structs, more comments
+//                        & add support for older XEX variants
+//  Category: Executable
+// File Mask: *.xex,*.dll,*.exe,*.lex,*.xexp,*.dllp,*.exep
+//  ID Bytes: 58 45 58 //XEX
+// Sources:
+// https://github.com/xemio/testdev/blob/master/xkelib/kernel/keXexInfo.h
+//--------------------------------------
+
+// Includes
+#include "XEX2FlagsAndEnums.bt"
+#include "XEX2OptionalHeaders.bt"
+#include "XEX2Functions.bt"
+#include "XEX2Headers.bt"
+
+// Basic settings for this template
+BigEndian();
+BitfieldRightToLeft();
+DisplayFormatHex();
+
+// Start mapping
+local DWORD magic = ReadUInt(0);
+local DWORD xexType = magic & 0xFF;
+FSeek(0);
+
+local DWORD xexHeaderSize = sizeof(IMAGE_XEX_HEADER);
+local char hasSecurityInfo = 1;
+
+if(xexType == 0x30) // XEX0 (>=1332)
+{
+    IMAGE_XEX0_HEADER XexHeader;
+    hasSecurityInfo = 0;
+    xexHeaderSize = sizeof(IMAGE_XEX0_HEADER);
+}
+else if(xexType == 0x3F) // XEX? (>=1434)
+{
+    IMAGE_XEX_3F_HEADER XexHeader;
+    hasSecurityInfo = 0;
+    xexHeaderSize = sizeof(IMAGE_XEX_3F_HEADER);
+}
+else
+{
+    IMAGE_XEX_HEADER XexHeader;
+}
+
+IMAGE_XEX_DIRECTORY_ENTRY DirectoryEntries[XexHeader.HeaderDirectoryEntryCount];
+
+if(hasSecurityInfo)
+{
+    FSeek(XexHeader.SecurityInfo);
+    
+    // Read in correct security info struct for this XEX version
+    if(xexType == 0x32)      // XEX2 (>=186x)
+    {
+        XEX2_SECURITY_INFO SecurityInfo;
+    }
+    else if(xexType == 0x31) // XEX1 (<=186x)
+    {
+        XEX1_SECURITY_INFO SecurityInfo;
+    }
+    else if(xexType == 0x25) // XEX% (<=1746)
+    {
+        XEX_25_SECURITY_INFO SecurityInfo;
+    }
+    else if(xexType == 0x2D) // XEX- (<=1640)
+    {
+        XEX_2D_SECURITY_INFO SecurityInfo;
+    }
+
+    HV_PAGE_INFO PageDescriptors[SecurityInfo.PageDescriptorCount];
+}
+
+local int x, headerLen;
+for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
+{
+    headerLen = DirectoryEntries[x].Key & 0xFF;
+    if(headerLen <= 1)
+    {
+        // If its privileges go back and map it
+        if(DirectoryEntries[x].Key == Privileges)
+        {
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            XEX_PRIVILEGES Privileges;
+        }
+        if(DirectoryEntries[x].Key == Privileges_32)
+        {
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            XEX_PRIVILEGES_32 Privileges_32;
+        }
+        if(xexType == 0x30 && DirectoryEntries[x].Key == OriginalBaseAddress_XEX3F)
+        {
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            XEX0_MODULEFLAGS ModuleFlags;
+        }
+
+        // Header is small enough to fit in the DIRECTORY_ENTRY struct
+        Printf("DirectoryEntries[%d]: 0x%X (%s) = 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+        continue;
+    }
+    Printf("DirectoryEntries[%d]: 0x%X (%s) @ 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+    
+    // Handle specific ones first
+    FSeek(DirectoryEntries[x].Value);
+    
+    if(xexType == 0x30 && DirectoryEntries[x].Key == Imports)
+    {
+        // XEX0 SPA file name, uses same key as XEX2 imports descriptor
+        // (seems buggy, won't output string past 4 byte boundaries, eg. hello.txt -> hello.tx)
+        XEXSTRING SpaName;
+        continue;
+    }
+    
+    switch(DirectoryEntries[x].Key)
+    {
+        case HeaderSectionTable:   XEX2_RESOURCES               HeaderSectionTable;    break;
+        case FileDataDescriptor:   XEX_FILE_DATA_DESCRIPTOR    FileDataDescriptor;    break;
+        case DeltaPatchDescriptor: XEX_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
+        case BoundingPath:         XEXSTRING                    BoundingPath;          break;
+        case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
+        case Imports_OldKey:       
+            if(xexType == 0x25)
+                XEX2_IMPORT_DESCRIPTOR   Imports;
+            else
+                XEX_IMPORT_DESCRIPTOR    Imports;
+            break;
+        case VitalStats:           XEX_VITAL_STATS             VitalStats;            break;
+        case CallcapImports:       XEX_CALLCAP_IMPORTS         CallcapImports;        break;
+        case PEModuleName:         XEXSTRING                    PEModuleName;          break;
+        case BuildVersions:        XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
+        case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
+        case TLSData:              XEX_TLS_DATA                TLSData;               break;
+        case TLSData_OldKey:       XEX_TLS_DATA                TLSData;               break;
+        case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
+        case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;      break;
+        case ServiceIDList:        XEX_SERVICE_ID_LIST         ServiceIDList;         break;
+        case GameRatings:          XEX_GAMERATINGS             GameRatings;           break;
+        case LANKey:               XEXKEY                       LANKey;                break;
+        case MicrosoftLogo:        XEX_MSLOGO                  MicrosoftLogo;         break;
+        case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case XexSections:          XEX3F_SECTION_HEADERS        XexSections;           break;
+        case SpaName:              XEXSTRING                    SpaName;               break;
+        case BuildVersions_XEX3F:  IMAGE_DATA_DIRECTORY         BuildVersions_XEX3F<comment="Points to .XBLD section data inside PE">; break;
+        case ImportsByName:        IMAGE_DATA_DIRECTORY         ImportsByName;         break;
+        case ExecutionID:
+            if(xexType == 0x3F)
+                XEX3F_EXECUTION_ID   ExecutionID;
+            else if(xexType == 0x2D)
+                XEX2D_EXECUTION_ID   ExecutionID;
+            else
+                XEX2_EXECUTION_ID    ExecutionID;
+            break;
+        default:
+            if(headerLen == 0xFF)
+                OPTIONALHEADERDATA optData;
+            else
+            {
+                Printf("DirectoryEntries[%d]: unknown key 0x%X (%s) @ 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+                struct IMAGE_DIRECTORY_DATA { DWORD Data[headerLen]; } data; 
+            }
+            break;
+    }
+}
+
+local int peSize = FileSize() - XexHeader.SizeOfHeaders;
+FSeek(XexHeader.SizeOfHeaders);
+if(peSize > 0)
+    CHAR peData[FileSize() - XexHeader.SizeOfHeaders];

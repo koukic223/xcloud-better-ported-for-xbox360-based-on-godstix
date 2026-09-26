@@ -1,0 +1,687 @@
+//--------------------------------------
+//--------------------------------------
+//--- 010 Editor v9.0 Binary Template
+//
+// File:     Xbox360Container.bt
+// Author:   Anthony, emoose
+// Revision: 1.5
+// Purpose:  Make it easier to navigate an Xbox 360 content package
+// File Mask: *
+// ID Bytes: 43 4F 4E 20, 4C 49 56 45, 50 49 52 53 // CON, LIVE, PIRS
+// History:
+// 2010-10-01  Anthony  Initial version
+// 2018-11-20  emoose   Update with more structs (i.e. INSTALLER_METADATA)
+//                        & read directories
+// Sources:
+// https://github.com/xemio/testdev/blob/master/xkelib/xam/xamXContent.h
+//--------------------------------------
+
+// Includes
+#include "XEX2FlagsAndEnums.bt"
+#include "XEX2OptionalHeaders.bt"
+#include "XEX2Functions.bt"
+
+// Basic settings for this template
+BigEndian();
+BitfieldRightToLeft();
+
+typedef union _LARGE_INTEGER {
+    struct {
+        ULONG LowPart;
+        LONG HighPart;
+    } Parts;
+    INT64 QuadPart;
+} LARGE_INTEGER;
+
+typedef struct _UCHAR_80 {
+    WORD Data[0x80];
+} UCHAR_80;
+
+typedef struct _UCHAR_40 {
+    WORD Data[0x40];
+} UCHAR_40;
+
+enum<DWORD> XCONTENTTYPE {
+    SavedGame = 1,
+    Marketplace = 2,
+    Publisher = 3,
+    IPTVDVR = 0x1000,
+    IPTVPauseBuffer = 0x2000,
+    XNACommunity = 0x3000,
+    InstalledXbox360Title = 0x4000,
+    XboxTitle = 0x5000,
+    SocialTitle = 0x6000,
+    Xbox360Title = 0x7000,
+    SUStoragePack = 0x8000,
+    AvatarAsset = 0x9000,
+    Profile = 0x10000,
+    Addon = 0x20000, // formerly GamerPicture?
+    ThematicSkin = 0x30000,
+    Cache = 0x40000,
+    StorageDownload = 0x50000,
+    XboxSavedGame = 0x60000,
+    XboxDownload = 0x70000,
+    GameDemo = 0x80000,
+    Video = 0x90000,
+    GameTitle = 0xA0000,
+    Installer = 0xB0000,
+    GameTrailer = 0xC0000,
+    Arcade = 0xD0000,
+    XNA = 0xE0000,
+    LicenseStore = 0xF0000,
+    Movie = 0x100000,
+    TV = 0x200000,
+    MusicVideo = 0x300000,
+    Promotional = 0x400000,
+    PodcastVideo = 0x500000,
+    ViralVideo = 0x600000,
+    CommunityGame = 0x2000000
+};
+
+typedef enum _INSTALLER_METADATA_TYPE {
+    UNDEFINED = 0,
+    PROGRESS_CACHE_PACKAGE_DOWNLOAD = 0x50245044,
+    PROGRESS_CACHE_SYSTEM_UPDATE = 0x50245355,
+    PROGRESS_CACHE_TITLE_CONTENT = 0x50245443,
+    PROGRESS_CACHE_TITLE_UPDATE = 0x50245455,
+    SYSTEM_UPDATE = 0x53555044,
+    TITLE_UPDATE = 0x54555044,
+} INSTALLER_METADATA_TYPE;
+
+typedef enum _XONLINECONTENT_RESUME_STATE {
+    FILE_HEADERS_NOT_READY = 0x46494C48,
+    LEGACY_NEW_FOLDER = 0x464F4C44,
+    LEGACY_NEW_FOLDER_ATTEMPT_2 = 0x464F4C32,
+    LEGACY_NEW_FOLDER_ATTEMPT_3 = 0x464F4C33,
+    NEW_FOLDER = 0x666F6C64,
+    NEW_FOLDER_RESUME_ATTEMPT_2 = 0x666F6C32,
+    NEW_FOLDER_RESUME_ATTEMPT_3 = 0x666F6C33,
+    NEW_FOLDER_RESUME_ATTEMPT_4 = 0x666F6C34,
+    NEW_FOLDER_RESUME_ATTEMPT_5 = 0x666F6C35,
+    NEW_FOLDER_RESUME_ATTEMPT_6 = 0x666F6C36,
+    NEW_FOLDER_RESUME_ATTEMPT_7 = 0x666F6C37,
+    NEW_FOLDER_RESUME_ATTEMPT_8 = 0x666F6C38,
+    NEW_FOLDER_RESUME_ATTEMPT_9 = 0x666F6C39,
+    NEW_FOLDER_RESUME_ATTEMPT_10 = 0x666F6C3A,
+    NEW_FOLDER_RESUME_ATTEMPT_11 = 0x666F6C3B,
+    NEW_FOLDER_RESUME_ATTEMPT_12 = 0x666F6C3C,
+    NEW_FOLDER_RESUME_ATTEMPT_13 = 0x666F6C3D,
+    NEW_FOLDER_RESUME_ATTEMPT_14 = 0x666F6C3E,
+    NEW_FOLDER_RESUME_ATTEMPT_15 = 0x666F6C3F,
+    NEW_FOLDER_RESUME_ATTEMPT_16 = 0x666F6C40,
+} XONLINECONTENT_RESUME_STATE;
+
+enum<WORD> LICENSEE_TYPE {
+    WINDOWS_ID = 0x3, // not sure on this one (velocity)
+    XUID = 0x9,
+    SER_PRIVILEGES = 0xB000,
+    HV_FLAGS = 0xC000,
+    KEY_VAULT_PRIVILEGES = 0xD000,
+    MEDIA_FLAGS = 0xE000,
+    CONSOLE_ID = 0xF000,
+    UNRESTRICTED = 0xFFFF,
+};
+
+typedef enum _XCONTENT_SIGNATURE_TYPE {
+    CONSOLE_SIGNED = 0x434F4E20,
+    LIVE_SIGNED = 0x4C495645,
+    PIRS_SIGNED = 0x50495253,
+} XCONTENT_SIGNATURE_TYPE;
+
+typedef struct _CONSOLE_PUBLIC_KEY {
+    BYTE PublicExponent[0x04];
+    BYTE Modulus[0x80];
+} CONSOLE_PUBLIC_KEY;
+
+typedef struct _XE_CONSOLE_CERTIFICATE {
+    WORD CertSize;
+    BYTE ConsoleId[0x05];
+    BYTE ConsolePartNumber[0x0B];
+    BYTE Reserved[0x04];
+    WORD Privileges;
+    DWORD ConsoleType;
+    BYTE ManufacturingDate[0x08];
+    CONSOLE_PUBLIC_KEY ConsolePublicKey;
+    BYTE Signature[0x100];
+} XE_CONSOLE_CERTIFICATE;
+
+typedef struct _XE_CONSOLE_SIGNATURE {
+    XE_CONSOLE_CERTIFICATE Cert;
+    BYTE Signature[0x80];
+} XE_CONSOLE_SIGNATURE;
+
+typedef struct _XCONTENT_SIGNATURE {
+    BYTE Signature[0x100];
+    BYTE Reserved[0x128];
+} XCONTENT_SIGNATURE;
+
+typedef struct _LICENSEE_BITS {
+    LICENSEE_TYPE Type;
+    WORD DataHi;
+    DWORD DataLo;
+} LICENSEE_BITS;
+
+typedef struct _XCONTENT_LICENSE {
+    union {
+        LICENSEE_BITS Bits;
+        QWORD AsULONGLONG;
+    } LicenseeId;
+    DWORD LicenseBits;
+    DWORD LicenseFlags;
+} XCONTENT_LICENSE;
+
+typedef struct _XCONTENT_HEADER {
+    XCONTENT_SIGNATURE_TYPE SignatureType;
+    union {
+        XE_CONSOLE_SIGNATURE ConsoleSignature;
+        XCONTENT_SIGNATURE ContentSignature;
+    } Signature;
+    XCONTENT_LICENSE LicenseDescriptors[0x10];
+    XEXDIGEST ContentId;
+    DWORD SizeOfHeaders; // 0x971A in CON files, 0xAD0E (0x971A + 0x15F4) in LIVE/PIRS because they include XCONTENT_METADATA_INSTALLER
+} XCONTENT_HEADER;
+
+typedef enum _XCONTENT_VOLUME_TYPE {
+    STFS_VOLUME = 0x00,
+    SVOD_VOLUME = 0x01,
+} XCONTENT_VOLUME_TYPE;
+
+typedef struct _STF_VOLUME_DESCRIPTOR {
+    BYTE DescriptorLength;
+    BYTE Version;
+    BYTE ReadOnlyFormat : 1; // if set then hash tables won't use redundant blocks next to them, eg. normally table 0 would be at 0xA000 & 0xB000, but if this is set it'd only be at 0xA000
+    BYTE RootActiveIndex : 1;
+    BYTE DirectoryOverAllocated : 1;
+    BYTE IndexBoundsValid : 1;
+    BYTE DirectoryAllocationBlocks0;
+    BYTE DirectoryAllocationBlocks1;
+    BYTE DirectoryFirstBlockNumber0;
+    BYTE DirectoryFirstBlockNumber1;
+    BYTE DirectoryFirstBlockNumber2;
+    XEXDIGEST RootHash;
+    DWORD NumberOfTotalBlocks;
+    DWORD NumberOfFreeBlocks;
+} STF_VOLUME_DESCIPTOR;
+
+typedef struct _SVOD_HASH_ENTRY {
+    XEXDIGEST Hash;
+} SVOD_HASH_ENTRY;
+
+typedef struct _SVOD_DEVICE_FEATURES {
+    BYTE ShouldBeZeroForDownlevelClients : 1;
+    BYTE HasEnhancedGDFLayout : 1;
+    BYTE MustBeZeroForFutureUsage : 6;
+} SVOD_DEVICE_FEATURES;
+
+typedef struct _SVOD_DEVICE_DESCRIPTOR {
+    BYTE DescriptorLength;
+    BYTE BlockCacheElementCount;
+    BYTE WorkerThreadProcessor;
+    BYTE WorkerThreadPriority;
+    SVOD_HASH_ENTRY FirstFragmentHashEntry;
+    SVOD_DEVICE_FEATURES Features;
+    BYTE NumberOfDataBlocks2;
+    BYTE NumberOfDataBlocks1;
+    BYTE NumberOfDataBlocks0;
+    BYTE StartingDataBlock0;
+    BYTE StartingDataBlock1;
+    BYTE StartingDataBlock2;
+    BYTE Reserved[0x05];
+} SVOD_DEVICE_DESCRIPTOR;
+
+typedef struct _XCONTENT_METADATA_MEDIA_DATA {
+    XEXKEY SeriesId;
+    XEXKEY SeasonId;
+    WORD SeasonNumber;
+    WORD EpisodeNumber;
+} XCONTENT_METADATA_MEDIA_DATA;
+
+typedef struct _XCONTENT_METADATA_AVATAR_ASSET_DATA {
+    DWORD SubCategory;
+    INT Colorizable;
+    XEXKEY AssetId;
+    BYTE SkeletonVersionMask;
+    BYTE Reserved[0xB];
+} XCONTENT_METADATA_AVATAR_ASSET_DATA;
+
+typedef struct _XCONTENT_ATTRIBUTES {
+    BYTE Reserved : 2;
+    BYTE DeepLinkSupported : 1;
+    BYTE DisableNetworkStorage : 1;
+    BYTE KinectEnabled : 1;
+    BYTE MoveOnlyTransfer : 1;
+    BYTE DeviceTransfer : 1;
+    BYTE ProfileTransfer : 1;
+} XCONTENT_ATTRIBUTES;
+
+typedef struct _XCONTENT_METADATA {
+    XCONTENTTYPE ContentType;
+    DWORD ContentMetadataVersion;
+    QWORD ContentSize;
+    XEX2_EXECUTION_ID ExecutionId;
+    BYTE ConsoleId[0x05];
+    QWORD Creator;
+    union {
+        STF_VOLUME_DESCIPTOR Stfs;
+        SVOD_DEVICE_DESCRIPTOR Svod;
+    } VolumeDescriptor;
+    DWORD DataFiles;
+    UINT64 DataFilesSize;
+    XCONTENT_VOLUME_TYPE VolumeType;
+    QWORD OnlineCreator;
+    DWORD Category;
+    BYTE Reserved2[0x20];
+    union {
+        XCONTENT_METADATA_MEDIA_DATA MediaData;
+        XCONTENT_METADATA_AVATAR_ASSET_DATA AvatarAssetData;
+    } TypeSpecificData;
+    XEXDIGEST DeviceId;
+    UCHAR_80 DisplayName[0x09];
+    UCHAR_80 Description[0x09];
+    UCHAR_40 Publisher;
+    UCHAR_40 TitleName;
+    union {
+        XCONTENT_ATTRIBUTES Bits;
+        BYTE FlagsAsBYTE;
+    } Flags;
+    UINT ThumbnailSize;
+    UINT TitleThumbnailSize;
+    BYTE Thumbnail[0x3D00];
+    UCHAR_80 DisplayNameEx[0x03];
+    BYTE TitleThumbnail[0x3D00];
+    UCHAR_80 DescriptionEx[0x03];
+} XCONTENT_METADATA;
+
+typedef struct _XCONTENT_METADATA_INSTALLER_TITLE_UPDATE {
+    VERSION CurrentVersion;
+    VERSION NewVersion;
+    BYTE Reserved[0x15E8];
+} XCONTENT_METADATA_INSTALLER_TITLE_UPDATE;
+
+typedef struct _XCONTENT_METADATA_INSTALLER_SYSTEM_UPDATE {
+    VERSION SystemVersion;
+    VERSION NewVersion;
+    BYTE Reserved[0x15E8];
+} XCONTENT_METADATA_INSTALLER_SYSTEM_UPDATE;
+
+typedef struct _XONLINECONTENT_RESUME_HEADER {
+    XONLINECONTENT_RESUME_STATE ResumeState;
+    DWORD dwCurrentFileIndex;
+    LARGE_INTEGER liCurrentFileOffset;
+    LARGE_INTEGER liBytesProcessed;
+    LARGE_INTEGER liLastModified;
+} XONLINECONTENT_RESUME_HEADER;
+
+typedef struct _XCONTENT_METADATA_INSTALLER_PROGRESS_CACHE {
+    struct _XONLINECONTENT_RESUME_HEADER ResumeHeader;
+    BYTE CabResumeData[0x15D0];
+} XCONTENT_METADATA_INSTALLER_PROGRESS_CACHE;
+
+typedef struct _XCONTENT_METADATA_INSTALLER {
+    INSTALLER_METADATA_TYPE MetaDataType;
+    union {
+        XCONTENT_METADATA_INSTALLER_TITLE_UPDATE TitleUpdate;
+        XCONTENT_METADATA_INSTALLER_SYSTEM_UPDATE SystemUpdate;
+        XONLINECONTENT_RESUME_HEADER ResumeHeader;
+    } MetaData;
+} XCONTENT_METADATA_INSTALLER;
+
+typedef union _STF_FILE_BOUNDS {
+    DWORD FileSize;
+    struct {
+        WORD FirstChildDirectoryIndex;
+        WORD LastChildDirectoryIndex;
+    } DirectoryIndex;
+} STF_FILE_BOUNDS;
+
+typedef union _STF_TIME_STAMP {
+    struct {
+        DWORD DoubleSeconds : 5;
+        DWORD Minute : 6;
+        DWORD Hour : 5;
+        DWORD Day : 5;
+        DWORD Month : 4;
+        DWORD Year : 7;
+    } Time;
+
+    DWORD AsULONG;
+} STF_TIME_STAMP;
+
+typedef struct _STF_HASH_ENTRY {
+    XEXDIGEST Hash;
+    union {
+        struct {
+            DWORD NextBlockNumber : 24;
+            DWORD : 6;
+            DWORD State : 2;
+        } Level0;
+
+        struct {
+            DWORD NumberOfFreeBlocks : 15;
+            DWORD NumberOfFreePendingBlocks : 15;
+            DWORD ActiveIndex : 1;
+            DWORD Writeable : 1;
+        } LevelN;
+
+        DWORD LevelAsULONG;
+    } Level;
+} STF_HASH_ENTRY;
+
+typedef struct _STF_HASH_BLOCK {
+    STF_HASH_ENTRY Entries[170];
+    DWORD NumberOfCommittedBlocks;
+    CHAR Padding[12];
+} STF_HASH_BLOCK;
+
+typedef struct _SVOD_LEVEL1_HASH_BLOCK {
+    SVOD_HASH_ENTRY Entries[203];
+    SVOD_HASH_ENTRY NextFragmentHashEntry;
+    CHAR Reserved[16];
+} SVOD_LEVEL1_HASH_BLOCK;
+
+typedef struct _SVOD_LEVEL0_HASH_BLOCK {
+    SVOD_HASH_ENTRY Entries[204];
+    CHAR Reserved[16];
+} SVOD_LEVEL0_HASH_BLOCK;
+
+typedef struct _SVOD_LEVEL0_BACKING_BLOCKS {
+    SVOD_LEVEL0_HASH_BLOCK Level0HashBlock;
+    CHAR DataBlocks[835584];
+} SVOD_LEVEL0_BACKING_BLOCKS;
+
+typedef struct _STF_DIRECTORY_ENTRY {
+    CHAR FileName[40];
+    BYTE FileNameLength : 6;
+    BYTE Contiguous : 1;
+    BYTE Directory : 1;
+    CHAR ValidDataBlocks0;
+    CHAR ValidDataBlocks1;
+    CHAR ValidDataBlocks2;
+    CHAR AllocationBlocks0;
+    CHAR AllocationBlocks1;
+    CHAR AllocationBlocks2;
+    CHAR FirstBlockNumber0;
+    CHAR FirstBlockNumber1;
+    CHAR FirstBlockNumber2;
+    WORD DirectoryIndex;
+    STF_FILE_BOUNDS FileBounds;
+    STF_TIME_STAMP CreationTimeStamp;
+    STF_TIME_STAMP LastWriteTimeStamp;
+} STF_DIRECTORY_ENTRY;
+
+typedef struct _STF_DIRECTORY_BLOCK {
+    STF_DIRECTORY_ENTRY Entries[0x1000 / 0x40];
+} STF_DIRECTORY_BLOCK;
+
+DWORD StfComputeBackingDataBlockNumber_Old(DWORD BlockNumber)
+{
+    local DWORD blocksPerTable = 1;
+    local DWORD block = 0;
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+        blocksPerTable = blocksPerTable + 1;
+
+    block = BlockNumber + blocksPerTable * ((BlockNumber + 170) / 170);
+    if (BlockNumber >= 170)
+    {
+        block += blocksPerTable * ((BlockNumber + 28900) / 28900);
+        if (BlockNumber >= 28900)
+            block += blocksPerTable;
+    }
+
+    return block;
+}
+
+DWORD StfComputeBackingDataBlockNumber(DWORD BlockNumber)
+{
+    local DWORD blocksPerTable = 1; // num blocks each hash table uses
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+        blocksPerTable = 2;
+
+    local DWORD base = 0xAA;
+    local DWORD block = BlockNumber;
+
+    local int i = 0;
+    for (i = 0; i < 3; i++)
+    {
+        block += blocksPerTable * ((BlockNumber + base) / base);
+        if (BlockNumber < base)
+            break;
+
+        base = base * 0xAA;
+    }
+
+    return block;
+}
+
+DWORD StfComputeLevelNBackingHashBlockNumber(DWORD BlockNumber, DWORD Level)
+{
+    local DWORD blocksPerTable = 1;
+    local DWORD blockStep0 = 0xAB;
+    local DWORD blockStep1 = 0x718F;
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+    {
+        blocksPerTable = 2;
+        blockStep0 = 0xAC;
+        blockStep1 = 0x723A;
+    }
+
+    local DWORD block = 0;
+    if (Level == 0)
+    {
+        block = (BlockNumber / 0xAA) * blockStep0;
+        if (BlockNumber / 0xAA != 0)
+        {
+            block = block + ((BlockNumber / 0x70E4) + 1) * blocksPerTable;
+            if (BlockNumber / 0x70E4 != 0)
+                return block + blocksPerTable;
+        }
+        return block;
+    }
+    
+    if (Level == 1)
+    {
+        block = (BlockNumber / 0x70E4) * blockStep1;
+        if (BlockNumber / 0x70E4 != 0)
+            return block + blocksPerTable;
+
+        return block + blockStep0;
+    }
+    
+    // Level 2 is always at blockStep1
+    return blockStep1;
+}
+
+int64 StfsBackingBlockToOffset(DWORD BlockNumber)
+{
+    local int64 dataAddr = ((Header.SizeOfHeaders + 0xFFF) / 0x1000) * 0x1000;
+    return dataAddr + (BlockNumber * 0x1000);
+}
+
+int64 StfsDataBlockToOffset(DWORD BlockNumber)
+{
+    return StfsBackingBlockToOffset(StfComputeBackingDataBlockNumber(BlockNumber));
+}
+
+int64 StfsDataBlockToOffset_Old(DWORD BlockNumber)
+{
+    return StfsBackingBlockToOffset(StfComputeBackingDataBlockNumber_Old(BlockNumber));
+}
+
+// Reads Level0.NextBlockNumber from the L0 hash-entry for the given block, navigating through each hash-level if needed to find the correct L0 block to read from.
+// The Level0.NextBlockNumber value is important for non-ReadOnlyFormat packages, as those packages can be heavily fragmented, with files consisting of blocks located all throughout the package
+// In contrast, ReadOnlyFormat packages like LIVE/PIRS usually have file blocks stored contiguously (even with a Contiguous flag in the STF_DIRECTORY_ENTRY - not sure how much that flag can be trusted though)
+// (this is also why eg. tools like wxPirs mostly work fine with LIVE/PIRS, but almost always completely fails with any CON package - as it never checks the hash tables for NextBlockNumber)
+DWORD StfsGetNextBlock(DWORD BlockNumber)
+{
+    local DWORD hashBlockNum = 0;
+    local int64 hashBlockOffset = 0;
+    local DWORD hashBlockEntry = 0;
+
+    local int64 redundantBlockOffset = Metadata.VolumeDescriptor.Stfs.RootActiveIndex ? 0x1000 : 0;
+
+    // Read-only packages don't contain redundant hash blocks, we can return the next block directly from the L0 table for those
+    // Otherwise we need to check upper levels first to find if we should use each levels redundant block or not
+    if (Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+        redundantBlockOffset = 0;
+    else
+    {
+        // Non-ReadOnlyFormat packages contain redundant blocks for each hash table, located directly after it
+        // (this shifts some data in the package, so StfComputeLevelNBackingHashBlockNumber & StfComputeBackingDataBlockNumber have to take it into account)
+        
+        // Whether the redundant block is being used ("active") or not seems to be determined by the ActiveIndex flag in the table-level above it
+        // or the volume descriptor RootActiveIndex flag for the top-most level
+        // Incorrectly using the wrong block can result in the wrong L0 block being used, potentially giving out-of-date values for Level0.NextBlockNumber
+        // (Many STFS tools have fallen victim to this over the years, Velocity might be the only public open-source tool that mostly seems to handle them properly)
+        
+        if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0x70E4)
+        {
+            hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 2);
+            hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+            hashBlockOffset += redundantBlockOffset;
+
+            FSeek(hashBlockOffset);
+            STF_HASH_BLOCK HashBlock <hidden=true>;
+
+            hashBlockEntry = (BlockNumber / 0x70E4) % 0xAA;
+            redundantBlockOffset = HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+        }
+        if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0xAA)
+        {
+            hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 1);
+            hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+            hashBlockOffset += redundantBlockOffset;
+
+            FSeek(hashBlockOffset);
+            STF_HASH_BLOCK HashBlock <hidden=true>;
+
+            hashBlockEntry = (BlockNumber / 0xAA) % 0xAA;
+            redundantBlockOffset = HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+        }
+    }
+
+    hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 0);
+    hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+    hashBlockOffset += redundantBlockOffset;
+
+    FSeek(hashBlockOffset);
+    STF_HASH_BLOCK HashBlock <hidden=true>;
+
+    hashBlockEntry = BlockNumber % 0xAA;
+    return HashBlock.Entries[hashBlockEntry].Level.Level0.NextBlockNumber;
+}
+
+void StfsReadDirectory(int64 BlockNumber, int NumBlocks)
+{
+    Printf("Directory block: %d block count: %d\n", BlockNumber, NumBlocks);
+    local int currentBlock = BlockNumber;
+    local int64 currentOffset = 0;
+    local int dirIdx = 0;
+    for (dirIdx = 0; dirIdx < NumBlocks; dirIdx++)
+    {
+        if (currentBlock == 0xFFFFFF)
+            break;
+
+        currentOffset = StfsDataBlockToOffset(currentBlock);
+        Printf("Directory at 0x%X (block %d, backing %d)\n", currentOffset, currentBlock, StfComputeBackingDataBlockNumber(currentBlock));
+        Printf("(StfsDataBlockToOffset_Old: 0x%X)\n", StfsDataBlockToOffset_Old(currentBlock));
+
+        FSeek(currentOffset);
+
+        STF_DIRECTORY_BLOCK Directory;
+        local int i = 0;
+        for (i = 0; i < 0x40; i++)
+        {
+            if (Directory.Entries[i].FileName[0] == 0)
+                continue;
+        }
+
+        currentBlock = StfsGetNextBlock(currentBlock);
+    }
+}
+
+DWORD Int24(BYTE b0, BYTE b1, BYTE b2)
+{
+    return ((b2 & 0xFF) << 16) | ((b1 & 0xFF) << 8) | (b0 & 0xFF);
+}
+
+// Map out the XCONTENT file header
+XCONTENT_HEADER Header;
+if (Header.SizeOfHeaders == 0)
+    return; // No metadata in this file, maybe GfWL .lic?
+
+XCONTENT_METADATA Metadata;
+
+local WORD extraMetadataMagic = ReadInt(startof(Metadata) + sizeof(XCONTENT_METADATA));
+if (Header.SizeOfHeaders > 0x971A || extraMetadataMagic != 0) // 0x971A = sizeof(XCONTENT_HEADER) + sizeof(XCONTENT_METADATA)
+    XCONTENT_METADATA_INSTALLER InstallerMetadata;
+
+// no SVOD support atm
+if (Metadata.VolumeType != STFS_VOLUME)
+    return;
+
+local DWORD directoryBlock = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber0,
+    Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber1, Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber2);
+
+local DWORD numDirectoryBlocks = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryAllocationBlocks0,
+    Metadata.VolumeDescriptor.Stfs.DirectoryAllocationBlocks1, 0);
+
+StfsReadDirectory(directoryBlock, numDirectoryBlocks);
+
+local DWORD hashBlockNum = 0;
+local int64 hashBlockOffset = 0;
+local DWORD hashBlockEntry = 0;
+
+local int64 RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
+    Metadata.VolumeDescriptor.Stfs.RootActiveIndex ? 0x1000 : 0;
+
+if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0xAA)
+{
+    if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0x70E4)
+    {
+        hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 2);
+        hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+        hashBlockOffset += RedundantBlockOffset;
+
+        Printf("Directory L2 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
+        if (RedundantBlockOffset != 0)
+            Printf("(^ shifted by upper level ActiveIndex!)");
+
+        FSeek(hashBlockOffset);
+        STF_HASH_BLOCK DirectoryL2HashBlock;
+
+        hashBlockEntry = (directoryBlock / 0x28900) % 0xAA;
+
+        RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
+            DirectoryL2HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+    }
+
+    hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 1);
+    hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+    hashBlockOffset += RedundantBlockOffset;
+
+    Printf("Directory L1 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
+    if (RedundantBlockOffset != 0)
+    {
+        Printf("(^ shifted by upper level ActiveIndex!)");
+    }
+
+    FSeek(hashBlockOffset);
+    STF_HASH_BLOCK DirectoryL1HashBlock;
+
+    hashBlockEntry = (directoryBlock / 0xAA) % 0xAA;
+
+    RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
+        DirectoryL1HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+}
+
+
+hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 0);
+hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+hashBlockOffset += RedundantBlockOffset;
+
+Printf("Directory L0 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
+if (RedundantBlockOffset != 0)
+    Printf("(^ shifted by upper level ActiveIndex!)");
+
+FSeek(hashBlockOffset);
+STF_HASH_BLOCK DirectoryL0HashBlock;
